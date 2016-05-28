@@ -1,6 +1,5 @@
 ﻿using System;
-using System.IO;
-using System.IO.Compression;
+using System.Diagnostics;
 using System.Text;
 using System.Web;
 
@@ -25,13 +24,15 @@ namespace WcfServiceDemo
             var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd hh:mm;ss");
             HttpApplication app = sender as HttpApplication;
             HttpContext ctx = app.Context;
-            
+            var originalType = app.Request.Headers["Content-Type"];
+            var newType = originalType.Replace("soap+xml;charset=UTF-8", "soap+msbin1+gzip");
+            app.Request.Headers["Content-Type"] = newType;
+            app.Request.ContentType = newType;
             //Enable this line to see the decompressed value using SoapUI
             //app.Request.Filter = new GZipStream(app.Request.Filter, CompressionMode.Decompress);
-            var result = GetContentBody(app.Request);
-
-            System.Diagnostics.Debug.WriteLine($"{timestamp} : { app.Request.ServerVariables["ALL_RAW"]}");
-            System.Diagnostics.Debug.WriteLine($"{ timestamp} : {result}");
+            //var result = GetContentBody(app.Request);
+            Debug.WriteLine($"{timestamp} : { app.Request.ServerVariables["ALL_RAW"]}");
+            //System.Diagnostics.Debug.WriteLine($"{ timestamp} : {result}");
 
         }
 

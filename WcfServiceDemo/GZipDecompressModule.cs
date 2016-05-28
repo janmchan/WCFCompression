@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
@@ -34,6 +36,29 @@ namespace WcfServiceDemo
                 ctx.Response.Headers.Set("Content-encoding", "gzip");
         }
 
+        public void UpdateHeaders(ref HttpApplication app, ref HttpContext ctx, string header, string value)
+        {
+            app.Request.Headers[header] = value;
+            ctx.Request.Headers[header] = value;
+
+        }
+
+        public void RemoveHeaders(ref HttpApplication app, ref HttpContext ctx, string header)
+        {
+            app.Request.Headers.Remove(header);
+            ctx.Request.Headers.Remove(header);
+
+        }
+
+        private string GetContentBody(HttpRequest request)
+        {
+            // Read the request content and then reset the stream position back to its original place.
+            var content = request.BinaryRead((int)request.InputStream.Length);
+            request.InputStream.Position = 0;
+            var contentStr = Encoding.UTF8.GetString(content).Trim();
+            return contentStr;
+        }
+
         /// <summary>
         /// Fires at the start of each new web request
         /// </summary>
@@ -41,35 +66,39 @@ namespace WcfServiceDemo
         /// <param name="e">Event Arguments</param>
         public void Context_BeginRequest(object sender, EventArgs e)
         {
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd hh:mm;ss");
             HttpApplication app = sender as HttpApplication;
             HttpContext ctx = app.Context;
 
             string requestEncoding = ctx.Request.Headers["Content-encoding"];
+
+            foreach(string header  in app.Request.Headers)
+            {
+                Debug.WriteLine($"{header} : {app.Request.Headers[header]}");
+            }
+            
+            /*
             if (requestEncoding != null && requestEncoding == "gzip")
             {
                 app.Request.Filter =
                  new GZipStream(app.Request.Filter, CompressionMode.Decompress);
-
                 var content = app.Request.BinaryRead((int)app.Request.InputStream.Length);
                 app.Request.InputStream.Position = 0;
+                
                 var contentStr = Encoding.UTF8.GetString(content);
 
-                /*ctx.Request.Filter =
-                 new GZipStream(app.Request.Filter, CompressionMode.Decompress);
+                Debug.WriteLine($"{timestamp} : {contentStr}");
 
-                var content2 = ctx.Request.BinaryRead((int)ctx.Request.InputStream.Length);
-                ctx.Request.InputStream.Position = 0;
-                var contentStr2 = Encoding.UTF8.GetString(content2);*/
-
-                /*using (GZipStream gzip = new GZipStream(ctx.Request.InputStream, CompressionMode.Decompress))
+                using (GZipStream gzip = new GZipStream(ctx.Request.InputStream, CompressionMode.Decompress))
                 {
                     using (StreamReader reader = new StreamReader(gzip))
                     {
                         String content = reader.ReadToEnd();
                         var result = content;
                     }
-                }*/
+                }
             }
+        
 
 
             // Add response compression filter if the client accepts compressed responses
@@ -82,7 +111,7 @@ namespace WcfServiceDemo
             {
                 app.Response.Filter = new DeflateStream(ctx.Response.Filter, CompressionMode.Compress);
                 SetEncoding("deflate");
-            }
+            }*/
         }
 
         private bool IsEncodingAccepted(string encoding)
